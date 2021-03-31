@@ -1,0 +1,60 @@
+menu "SmartBlinds"
+
+    menu "Stepper"
+        # GPIOs to connect a 4-pin stepper. Order is the same as for Stepper in 
+        # Aduino API. For 28BYJ-48, pin 2 and 3 are swapped from connection 
+        # order.
+        config GPIO_1 
+            int "GPIO 1"
+            default 21
+
+        config GPIO_2
+            int "GPIO 2"
+            default 18
+
+        config GPIO_3 
+            int "GPIO 3"
+            default 19
+
+        config GPIO_4
+            int "GPIO 4"
+            default 5 
+
+        config STEPS_PER_REV
+            int "Steps per revolution. Default for 28BYJ-48 is 2038"
+            default 2038
+
+        config RPM
+            int "Speed for the rotation"
+            default 5
+    endmenu
+
+    menu "Storage"
+
+    config FLASH_PARTITION_PATH
+        string "Path for the flash wear leveling partition"
+        default "/flash"
+
+    endmenu
+
+    menu "Wifi"
+
+    config WIFI_SSID
+        string "SSID for the wifi"
+        default ""
+
+    config WIFI_PASSWORD
+        string "Password for the wifi"
+        default ""
+
+    endmenu
+
+    menu "Logging"
+
+    config LOGGING_TAG
+        string "Tag for logging"
+        default "SmartBlinds"
+
+    endmenu
+
+endmenu
