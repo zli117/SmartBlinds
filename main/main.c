@@ -26,6 +26,7 @@
 #define TAG CONFIG_LOGGING_TAG
 #define BASE_PATH CONFIG_FLASH_PARTITION_PATH
 #define FILE_NAME "state.bin"
+#define PARTITION_LABEL "storage"
 
 static wl_handle_t wl_handle = WL_INVALID_HANDLE;
 static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
@@ -36,17 +37,18 @@ static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
                           .rpm = CONFIG_RPM};
 
 void app_main(void) {
-  ESP_LOGI(TAG, "Mounting FAT filesystem");
+  ESP_LOGI(TAG, "Mounting FAT filesystem.");
   const esp_vfs_fat_mount_config_t mount_config = {
       .max_files = 4,
       .format_if_mount_failed = true,
       .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
-  esp_err_t err = esp_vfs_fat_spiflash_mount(BASE_PATH, "storage",
+  esp_err_t err = esp_vfs_fat_spiflash_mount(BASE_PATH, PARTITION_LABEL,
                                              &mount_config, &wl_handle);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
+    ESP_LOGE(TAG, "Failed to mount FATFS (%s).", esp_err_to_name(err));
     return;
   }
 
+  ESP_LOGI(TAG, "Init stepper.");
   stepper_init(&stepper);
 }
