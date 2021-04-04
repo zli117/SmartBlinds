@@ -7,28 +7,21 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 
-#include <esp_event.h>
-#include <esp_http_server.h>
-#include <esp_log.h>
-#include <esp_system.h>
-#include <esp_wifi.h>
-#include <nvs_flash.h>
 #include <sys/param.h>
 
+#include "esp_err.h"
 #include "esp_eth.h"
+#include "esp_event.h"
+#include "esp_http_server.h"
+#include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_system.h"
-#include "esp_vfs.h"
-#include "esp_vfs_fat.h"
-#include "nvs_flash.h"
+#include "esp_wifi.h"
+#include "state.h"
 #include "stepper.h"
 
 #define TAG CONFIG_LOGGING_TAG
-#define BASE_PATH CONFIG_FLASH_PARTITION_PATH
-#define FILE_NAME "state.bin"
-#define PARTITION_LABEL "storage"
 
-static wl_handle_t wl_handle = WL_INVALID_HANDLE;
 static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
                           .pin2 = CONFIG_GPIO_2,
                           .pin3 = CONFIG_GPIO_3,
@@ -37,18 +30,29 @@ static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
                           .rpm = CONFIG_RPM};
 
 void app_main(void) {
-  ESP_LOGI(TAG, "Mounting FAT filesystem.");
-  const esp_vfs_fat_mount_config_t mount_config = {
-      .max_files = 4,
-      .format_if_mount_failed = true,
-      .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
-  esp_err_t err = esp_vfs_fat_spiflash_mount(BASE_PATH, PARTITION_LABEL,
-                                             &mount_config, &wl_handle);
+  stepper_init(&stepper);
+  ESP_LOGI(TAG, "Initialized stepper.");
+
+  esp_err_t err;
+  err = init_state();
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to mount FATFS (%s).", esp_err_to_name(err));
+    ESP_LOGE(TAG, "Init state failed: %s", esp_err_to_name(err));
     return;
   }
+  ESP_LOGI(TAG, "Initialized state.");
 
-  ESP_LOGI(TAG, "Init stepper.");
-  stepper_init(&stepper);
+  State* state = get_mutable_state();
+  if (state == NULL) {
+    return;
+  }
+  ESP_LOGI(TAG, "max_steps: %d, current_steps: %d", state->max_steps,
+           state->current_steps);
+  ++state->max_steps;
+  --state->current_steps;
+  err = finish_mutation();
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Write state failed: %s", esp_err_to_name(err));
+    return;
+  }
+  ESP_LOGI(TAG, "Done saving");
 }

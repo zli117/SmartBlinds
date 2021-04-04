@@ -35,6 +35,10 @@ menu "SmartBlinds"
         string "Path for the flash wear leveling partition"
         default "/flash"
 
+    config STATE_FILE_PATH
+        string "Path for the state file"
+        default "/flash/state.bin"
+
     endmenu
 
     menu "Wifi"

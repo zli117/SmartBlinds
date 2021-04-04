@@ -9,5 +9,8 @@
   "idf.port": "/dev/ttyUSB0",
   "idf.pythonBinPath": "/home/zonglin/.espressif/python_env/idf4.1_py3.9_env/bin/python",
   "idf.toolsPath": "",
-  "git.ignoreLimitWarning": true
+  "git.ignoreLimitWarning": true,
+  "files.associations": {
+    "cerrno": "cpp"
+  }
 }
