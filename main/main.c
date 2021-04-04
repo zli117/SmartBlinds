@@ -19,6 +19,7 @@
 #include "esp_wifi.h"
 #include "state.h"
 #include "stepper.h"
+#include "wifi.h"
 
 #define TAG CONFIG_LOGGING_TAG
 
@@ -55,4 +56,5 @@ void app_main(void) {
     return;
   }
   ESP_LOGI(TAG, "Done saving");
+  wifi_init_sta();
 }
