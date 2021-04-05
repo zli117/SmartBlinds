@@ -187,6 +187,25 @@ static esp_err_t move_to_fraction_put_handler(httpd_req_t *req) {
   return respond_with_state(req);
 }
 
+static esp_err_t reset_state_put_handler(httpd_req_t *req) {
+  State *state = get_mutable_state();
+  if (state == NULL) {
+    ESP_LOGE(TAG, "State pointer is NULL");
+    return ESP_FAIL;
+  }
+
+  state->max_steps = -1;
+  state->current_step = -1;
+
+  esp_err_t err = finish_mutation();
+  if (err != ESP_OK) {
+    return err;
+  }
+
+  httpd_resp_set_type(req, "application/json");
+  return respond_with_state(req);
+}
+
 esp_err_t start_restful_server(Context *context) {
   if (context == NULL) {
     ESP_LOGE(TAG, "Context pointer is NULL");
@@ -246,6 +265,17 @@ esp_err_t start_restful_server(Context *context) {
                                     .handler = move_to_fraction_put_handler,
                                     .user_ctx = context};
   httpd_register_uri_handler(server, &move_steps_put_uri);
+
+  // Response:
+  // {
+  //    "max_steps": -1
+  //    "current_step": -1
+  // }
+  httpd_uri_t reset_state_put_uri = {.uri = "/reset_state",
+                                     .method = HTTP_PUT,
+                                     .handler = reset_state_put_handler,
+                                     .user_ctx = context};
+  httpd_register_uri_handler(server, &reset_state_put_uri);
 
   return ESP_OK;
 }

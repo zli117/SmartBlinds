@@ -52,3 +52,13 @@
       "current_steps": int   // Current step number
    }
    ```
+
+ * Reset State `PUT`
+   * Endpoint: `/reset_state`
+   * Response:
+   ```
+   {
+      "max_steps": -1
+      "current_step": -1
+   }
+   ```
