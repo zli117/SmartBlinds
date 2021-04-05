@@ -17,6 +17,7 @@
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "server.h"
 #include "state.h"
 #include "stepper.h"
 #include "wifi.h"
@@ -30,6 +31,8 @@ static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
                           .steps_per_rav = CONFIG_STEPS_PER_REV,
                           .rpm = CONFIG_RPM};
 
+static Context server_context = {.stepper = &stepper};
+
 void app_main(void) {
   stepper_init(&stepper);
   ESP_LOGI(TAG, "Initialized stepper.");
@@ -42,19 +45,12 @@ void app_main(void) {
   }
   ESP_LOGI(TAG, "Initialized state.");
 
-  State* state = get_mutable_state();
-  if (state == NULL) {
-    return;
-  }
-  ESP_LOGI(TAG, "max_steps: %d, current_steps: %d", state->max_steps,
-           state->current_steps);
-  ++state->max_steps;
-  --state->current_steps;
-  err = finish_mutation();
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Write state failed: %s", esp_err_to_name(err));
-    return;
-  }
-  ESP_LOGI(TAG, "Done saving");
   wifi_init_sta();
+
+  start_restful_server(&server_context);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to start server.");
+    return;
+  }
+  ESP_LOGI(TAG, "Server started");
 }

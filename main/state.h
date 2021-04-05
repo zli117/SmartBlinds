@@ -5,13 +5,15 @@
 #include "esp_system.h"
 
 typedef struct State_ {
-  int16_t max_steps;
-  int16_t current_steps;
+  int16_t max_steps;  // Not inclusive
+  int16_t current_step;
 } State;
 
 esp_err_t init_state();
 
 State* get_mutable_state();
+
+const State* get_state();
 
 esp_err_t finish_mutation();
 
