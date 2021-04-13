@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 #include "driver/gpio.h"
+#include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -40,13 +41,11 @@ void timer_callback(void* parameter) {
   configASSERT(parameter != NULL);
   TimerState* const timer_state = (TimerState*)parameter;
   if (timer_state->step == timer_state->end) {
-    BaseType_t higher_priority_woken = pdFALSE;
-    vTaskNotifyGiveIndexedFromISR(timer_state->stepper_task_handle,
-                                  /*uxIndexToNotify=*/1,
-                                  &higher_priority_woken);
+    vTaskNotifyGiveFromISR(timer_state->stepper_task_handle,
+                           /*pxHigherPriorityTaskWoken=*/NULL);
     return;
   }
-  const uint8_t pin_state = pin_states[step % 4];
+  const uint8_t pin_state = pin_states[timer_state->step % 4];
   gpio_set_level(timer_state->pin1, pin_state & 0b1000);
   gpio_set_level(timer_state->pin2, pin_state & 0b0100);
   gpio_set_level(timer_state->pin3, pin_state & 0b0010);
@@ -57,7 +56,7 @@ void timer_callback(void* parameter) {
 void stepper_task(void* parameter) {
   configASSERT(parameter != NULL);
   Context* const context = (Context*)parameter;
-  configASSERT(context->mutex != NULL);
+  configASSERT(context->semaphore != NULL);
 
   while (true) {
     xTaskNotifyWait(/*do not clear notification on enter*/ 0x00,
@@ -68,10 +67,11 @@ void stepper_task(void* parameter) {
     // inconsistent.
     delete_state_file();
 
-    const int64_t steps_per_min = (stepper->steps_per_rav * stepper->rpm);
+    const int64_t steps_per_min =
+        (context->stepper.steps_per_rav * context->stepper.rpm);
     const int64_t delay_us = (60L * 1e6L + steps_per_min - 1) / steps_per_min;
     const int32_t steps = context->steps;
-    const struct TimerState timer_state = {
+    TimerState timer_state = {
         .pin1 = context->stepper.pin1,
         .pin2 = context->stepper.pin2,
         .pin3 = context->stepper.pin3,
@@ -80,23 +80,22 @@ void stepper_task(void* parameter) {
         .direction = steps > 0 ? 1 : -1,
         .stepper_task_handle = context->stepper_task_handle,
         .step = steps > 0 ? 0 : -steps};
-    xSemaphoreGive(context->mutex);
 
     // Start timer for stepping
 
     esp_timer_create_args_t timer_args = {.callback = &timer_callback,
                                           .arg = &timer_state,
-                                          .dispatch_methodESP_TIMER_TASK,
+                                          .dispatch_method = ESP_TIMER_TASK,
                                           .name = "Stepper Timer"};
     esp_timer_handle_t timer_handle;
     configASSERT(esp_timer_create(&timer_args, &timer_handle) == ESP_OK);
     configASSERT(esp_timer_start_periodic(timer_handle, delay_us));
 
     // Sleep to wait for finish
-    xTaskNotifyWaitIndexed(/*uxIndexToWaitOn=*/1,
-                           /*do not clear notification on enter*/ 0x00,
-                           /*clear notification on exit*/ ULONG_MAX,
-                           /*pulNotificationValue=*/NULL, portMAX_DELAY);
+    xTaskNotifyWait(
+        /*do not clear notification on enter*/ 0x00,
+        /*clear notification on exit*/ ULONG_MAX,
+        /*pulNotificationValue=*/NULL, portMAX_DELAY);
 
     gpio_set_level(context->stepper.pin1, 0);
     gpio_set_level(context->stepper.pin2, 0);
@@ -116,7 +115,7 @@ void stepper_task(void* parameter) {
     }
     write_state_to_file(&context->state);
 
-    xSemaphoreGive(context->mutex);
+    xSemaphoreGive(context->semaphore);
   }
 }
 

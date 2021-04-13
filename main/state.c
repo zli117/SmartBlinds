@@ -18,8 +18,6 @@
 
 static wl_handle_t wl_handle = WL_INVALID_HANDLE;
 
-static State state = {.max_steps = -1, .current_step = -1};
-
 esp_err_t load_state_from_file(State* state) {
   FILE* file = fopen(FILE_PATH, "rb");
   if (file == NULL) {
@@ -34,7 +32,7 @@ esp_err_t load_state_from_file(State* state) {
   }
 
   state->max_steps = temp.max_steps;
-  state->curretn_step = temp.curretn_step;
+  state->current_step = temp.current_step;
   return ESP_OK;
 }
 

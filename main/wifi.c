@@ -42,7 +42,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
   }
 }
 
-void wifi_init_sta(void) {
+esp_err_t wifi_init_sta(void) {
   wifi_event_group = xEventGroupCreate();
 
   ESP_ERROR_CHECK(esp_netif_init());
@@ -94,4 +94,6 @@ void wifi_init_sta(void) {
   ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
                                                &event_handler));
   vEventGroupDelete(wifi_event_group);
+
+  return ESP_OK;
 }

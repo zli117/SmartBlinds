@@ -9,47 +9,58 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_vfs.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
 #include "state.h"
 #include "stepper.h"
 
 #define TAG CONFIG_LOGGING_TAG
 #define MAX_BUFFER (1024)
 
-static esp_err_t system_info_get_handler(httpd_req_t *req) {
-  httpd_resp_set_type(req, "application/json");
-  cJSON *root = cJSON_CreateObject();
-  esp_chip_info_t chip_info;
-  esp_chip_info(&chip_info);
-  cJSON_AddStringToObject(root, "version", IDF_VER);
-  cJSON_AddNumberToObject(root, "cores", chip_info.cores);
-  const char *json = cJSON_Print(root);
-  httpd_resp_sendstr(req, json);
-  free((void *)json);
-  cJSON_Delete(root);
-  return ESP_OK;
-}
+#define TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req_expr)             \
+  ({                                                                   \
+    httpd_req_t *const req = (req_expr);                               \
+    Context *context = (Context *)(req)->user_ctx;                     \
+    if (context == NULL) {                                             \
+      httpd_resp_send_err((req), HTTPD_500_INTERNAL_SERVER_ERROR,      \
+                          "Context is NULL");                          \
+      return ESP_FAIL;                                                 \
+    }                                                                  \
+    if (xSemaphoreTake(context->semaphore, (TickType_t)0) != pdTRUE) { \
+      cJSON *root = cJSON_CreateObject();                              \
+      cJSON_AddStringToObject(root, "msg", "Stepper is still moving"); \
+      const char *json = cJSON_Print(root);                            \
+      httpd_resp_sendstr((req), json);                                 \
+      free((void *)json);                                              \
+      cJSON_Delete(root);                                              \
+      return ESP_OK;                                                   \
+    }                                                                  \
+    context;                                                           \
+  })
 
-static esp_err_t respond_with_state(httpd_req_t *req) {
-  const State *state = get_state();
-  if (state == NULL) {
-    ESP_LOGE(TAG, "State pointer is NULL");
-    return ESP_FAIL;
-  }
+#define RETURN_IF_ERROR(status_expr, req_expr, http_error_code,        \
+                        http_error_msg)                                \
+  ({                                                                   \
+    const esp_err_t status_code = (status_expr);                       \
+    httpd_req_t *const req = (req_expr);                               \
+    if ((status_code) != ESP_OK) {                                     \
+      ESP_LOGE(TAG, http_error_msg);                                 \
+      httpd_resp_send_err((req), (http_error_code), (http_error_msg)); \
+      return status_code;                                              \
+    }                                                                  \
+  })
 
-  cJSON *root = cJSON_CreateObject();
-  cJSON_AddNumberToObject(root, "max_steps", state->max_steps);
-  cJSON_AddNumberToObject(root, "current_steps", state->current_step);
-  const char *json = cJSON_Print(root);
-  httpd_resp_sendstr(req, json);
-  free((void *)json);
-  cJSON_Delete(root);
-  return ESP_OK;
-}
-
-static esp_err_t current_status_get_handler(httpd_req_t *req) {
-  httpd_resp_set_type(req, "application/json");
-  return respond_with_state(req);
-}
+#define RETURN_OK(req_expr)                     \
+  ({                                            \
+    httpd_req_t *const req = (req_expr);        \
+    cJSON *root = cJSON_CreateObject();         \
+    cJSON_AddStringToObject(root, "msg", "OK"); \
+    const char *json = cJSON_Print(root);       \
+    httpd_resp_sendstr((req), json);            \
+    free((void *)json);                         \
+    cJSON_Delete(root);                         \
+    return ESP_OK;                              \
+  })
 
 static esp_err_t get_request_buffer(httpd_req_t *req, char *buf,
                                     size_t max_len) {
@@ -75,16 +86,47 @@ static esp_err_t get_request_buffer(httpd_req_t *req, char *buf,
     cur_len += received;
   }
   buf[total_len] = '\0';
+  ESP_LOGI(TAG, "Request: %s", buf);
+  return ESP_OK;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Handlers
+////////////////////////////////////////////////////////////////////////////////
+
+static esp_err_t system_info_get_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/json");
+  cJSON *root = cJSON_CreateObject();
+  esp_chip_info_t chip_info;
+  esp_chip_info(&chip_info);
+  cJSON_AddStringToObject(root, "version", IDF_VER);
+  cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+  const char *json = cJSON_Print(root);
+  httpd_resp_sendstr(req, json);
+  free((void *)json);
+  cJSON_Delete(root);
+  return ESP_OK;
+}
+
+static esp_err_t current_status_get_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/json");
+  const Context *context = TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req);
+  cJSON *root = cJSON_CreateObject();
+  cJSON_AddNumberToObject(root, "max_steps", context->state.max_steps);
+  cJSON_AddNumberToObject(root, "current_steps", context->state.current_step);
+  const char *json = cJSON_Print(root);
+  httpd_resp_sendstr(req, json);
+  free((void *)json);
+  cJSON_Delete(root);
   return ESP_OK;
 }
 
 static esp_err_t unsafe_move_steps_put_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/json");
   char buf[MAX_BUFFER];
-  esp_err_t err = get_request_buffer(req, buf, MAX_BUFFER);
-  if (err != ESP_OK) {
-    return err;
-  }
-  ESP_LOGI(TAG, "Request: %s", buf);
+  RETURN_IF_ERROR(get_request_buffer(req, buf, MAX_BUFFER), req,
+                  HTTPD_500_INTERNAL_SERVER_ERROR,
+                  "Failed to get request body");
 
   cJSON *root = cJSON_Parse(buf);
   int steps = cJSON_GetObjectItem(root, "steps")->valueint;
@@ -92,52 +134,18 @@ static esp_err_t unsafe_move_steps_put_handler(httpd_req_t *req) {
 
   // Move the stepper.
 
-  Context *context = (Context *)req->user_ctx;
-
-  if (context == NULL || context->stepper == NULL) {
-    ESP_LOGE(TAG, "Context pointer 0x%0x, stepper pointer 0x%0x",
-             (uint32_t)context,
-             context == NULL ? 0 : (uint32_t)context->stepper);
-    return ESP_FAIL;
-  }
-
-  State *state = get_mutable_state();
-  if (state == NULL) {
-    ESP_LOGE(TAG, "State pointer is NULL");
-    return ESP_FAIL;
-  }
-
-  if (state->max_steps < 0 || state->current_step < 0) {
-    ESP_LOGI(TAG, "Initialize state");
-    state->max_steps = 0;
-    state->current_step = 0;
-  }
-
-  stepper_step_block(context->stepper, steps);
-  state->current_step += steps;
-  if (state->current_step >= state->max_steps) {
-    state->max_steps = state->current_step;
-  }
-  if (state->current_step < 0) {
-    state->max_steps -= state->current_step;
-    state->current_step = 0;
-  }
-  err = finish_mutation();
-  if (err != ESP_OK) {
-    return err;
-  }
-
-  httpd_resp_set_type(req, "application/json");
-  return respond_with_state(req);
+  Context *const context = TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req);
+  context->steps = steps;
+  xTaskNotifyGive(context->stepper_task_handle);
+  RETURN_OK(req);
 }
 
 static esp_err_t move_to_fraction_put_handler(httpd_req_t *req) {
+  httpd_resp_set_type(req, "application/json");
   char buf[MAX_BUFFER];
-  esp_err_t err = get_request_buffer(req, buf, MAX_BUFFER);
-  if (err != ESP_OK) {
-    return err;
-  }
-  ESP_LOGI(TAG, "Request: %s", buf);
+  RETURN_IF_ERROR(get_request_buffer(req, buf, MAX_BUFFER), req,
+                  HTTPD_500_INTERNAL_SERVER_ERROR,
+                  "Failed to get request body");
 
   cJSON *root = cJSON_Parse(buf);
   const double fraction = cJSON_GetObjectItem(root, "fraction")->valuedouble;
@@ -151,59 +159,34 @@ static esp_err_t move_to_fraction_put_handler(httpd_req_t *req) {
 
   // Move the stepper.
 
-  Context *context = (Context *)req->user_ctx;
-
-  if (context == NULL || context->stepper == NULL) {
-    ESP_LOGE(TAG, "Context pointer 0x%0x, stepper pointer 0x%0x",
-             (uint32_t)context,
-             context == NULL ? 0 : (uint32_t)context->stepper);
-    return ESP_FAIL;
-  }
-
-  State *state = get_mutable_state();
-  if (state == NULL) {
-    ESP_LOGE(TAG, "State pointer is NULL");
-    return ESP_FAIL;
-  }
-
-  if (state->max_steps < 0 || state->current_step < 0) {
+  Context *const context = TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req);
+  if (context->state.max_steps < 0 || context->state.current_step < 0) {
     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
                         "State uninitialized.");
     ESP_LOGE(TAG, "State uninitialized");
     return ESP_FAIL;
   }
-
-  const int to_step = (int)(fraction * state->max_steps);
-
-  stepper_step_block(context->stepper, to_step - state->current_step);
-  state->current_step = to_step;
-
-  err = finish_mutation();
-  if (err != ESP_OK) {
-    return err;
-  }
-
-  httpd_resp_set_type(req, "application/json");
-  return respond_with_state(req);
+  context->steps =
+      (int)(fraction * context->state.max_steps) - context->state.current_step;
+  xTaskNotifyGive(context->stepper_task_handle);
+  RETURN_OK(req);
 }
 
 static esp_err_t reset_state_put_handler(httpd_req_t *req) {
-  State *state = get_mutable_state();
-  if (state == NULL) {
-    ESP_LOGE(TAG, "State pointer is NULL");
+  httpd_resp_set_type(req, "application/json");
+  Context *const context = TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req);
+
+  context->state.max_steps = -1;
+  context->state.current_step = -1;
+
+  if (write_state_to_file(&context->state) != ESP_OK) {
+    httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
+                        "Failed to persist state.");
+    ESP_LOGE(TAG, "Failed to persist state.");
+    xSemaphoreGive(context->semaphore);
     return ESP_FAIL;
   }
-
-  state->max_steps = -1;
-  state->current_step = -1;
-
-  esp_err_t err = finish_mutation();
-  if (err != ESP_OK) {
-    return err;
-  }
-
-  httpd_resp_set_type(req, "application/json");
-  return respond_with_state(req);
+  RETURN_OK(req);
 }
 
 esp_err_t start_restful_server(Context *context) {
