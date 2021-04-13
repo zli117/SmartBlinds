@@ -9,12 +9,12 @@ typedef struct State_ {
   int16_t current_step;
 } State;
 
-esp_err_t init_state();
+esp_err_t load_state_from_file(State* state);
 
-State* get_mutable_state();
+esp_err_t init_storage_and_state(State* state);
 
-const State* get_state();
+esp_err_t delete_state_file(); 
 
-esp_err_t finish_mutation();
+esp_err_t write_state_to_file(const State* state);
 
 #endif  // STATE_H_

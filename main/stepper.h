@@ -5,9 +5,12 @@
 #include <sys/time.h>
 
 #include "driver/gpio.h"
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "sdkconfig.h"
+#include "state.h"
 
 typedef struct Stepper_ {
   uint16_t pin1;
@@ -18,13 +21,19 @@ typedef struct Stepper_ {
   uint16_t rpm;
 } Stepper;
 
-// Initializes GPIOs with the specified struct.
-void stepper_init(const Stepper* stepper);
+typedef struct Context_ {
+  Stepper stepper;
+  State state;
+  int32_t steps;
+  TaskHandle_t stepper_task_handle;
 
-// Steps with specified rpm and pins. If steps is positive, do clock-wise.
-// Otherwise counter-clockwise. If steps is 0, then sets all pins to LOW only.
-// Note that due to integer division, the actual RPM could be slightly lower
-// than specified.
-void stepper_step_block(const Stepper* stepper, int32_t steps);
+  // Create with xSemaphoreCreateBinary() by main. Used to allow one move at a
+  // time. Server task should try to take the semaphore before preceeding.
+  // Stepper task is only responsbile for giving it. Server task should return
+  // if failed to take.
+  SemaphoreHandle_t semaphore;
+} Context;
+
+esp_err_t start_stepper_task(Context* const context);
 
 #endif  // STEPPER_H_

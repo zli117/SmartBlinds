@@ -20,7 +20,25 @@ static wl_handle_t wl_handle = WL_INVALID_HANDLE;
 
 static State state = {.max_steps = -1, .current_step = -1};
 
-esp_err_t init_state() {
+esp_err_t load_state_from_file(State* state) {
+  FILE* file = fopen(FILE_PATH, "rb");
+  if (file == NULL) {
+    ESP_LOGE(TAG, "Failed to open file: %s", FILE_PATH);
+    return errno;
+  }
+
+  State temp;
+  if (fread(&temp, sizeof(temp), /*nmemb*/ 1, file) != 1 && ferror(file) != 0) {
+    ESP_LOGE(TAG, "Failed to read file");
+    return ESP_FAIL;
+  }
+
+  state->max_steps = temp.max_steps;
+  state->curretn_step = temp.curretn_step;
+  return ESP_OK;
+}
+
+esp_err_t init_storage_and_state(State* state) {
   ESP_LOGI(TAG, "Mounting FAT filesystem.");
   const esp_vfs_fat_mount_config_t mount_config = {
       .max_files = 4,
@@ -41,42 +59,29 @@ esp_err_t init_state() {
     if (fclose(file) != 0) {
       return errno;
     }
+    state->max_steps = -1;
+    state->current_step = -1;
+    return ESP_OK;
   } else {
-    FILE* file = fopen(FILE_PATH, "rb");
-    if (file == NULL) {
-      ESP_LOGE(TAG, "Failed to open file: %s", FILE_PATH);
-      return errno;
-    }
-
-    if (fread(&state, sizeof(state), /*nmemb*/ 1, file) != 1 &&
-        ferror(file) != 0) {
-      ESP_LOGE(TAG, "Failed to read file");
-      return ESP_FAIL;
-    }
+    return load_state_from_file(state);
   }
+}
 
+esp_err_t delete_state_file() {
+  if (remove(FILE_PATH) != 0) {
+    ESP_LOGE(TAG, "Failed to remove file: %s", FILE_PATH);
+    return ESP_FAIL;
+  }
   return ESP_OK;
 }
 
-State* get_mutable_state() {
-  if (remove(FILE_PATH) != 0) {
-    ESP_LOGE(TAG, "Failed to remove file: %s", FILE_PATH);
-    return NULL;
-  }
-  return &state;
-}
-
-const State* get_state() {
-  return &state;
-}
-
-esp_err_t finish_mutation() {
+esp_err_t write_state_to_file(const State* state) {
   FILE* file = fopen(FILE_PATH, "wb");
   if (file == NULL) {
     ESP_LOGE(TAG, "Failed to open file for write: %s", FILE_PATH);
     return errno;
   }
-  if (fwrite(&state, sizeof(state), /*nmemb=*/1, file) != 1) {
+  if (fwrite(state, sizeof(State), /*nmemb=*/1, file) != 1) {
     ESP_LOGE(TAG, "Failed to write");
     return ESP_FAIL;
   }

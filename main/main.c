@@ -33,6 +33,8 @@ static Stepper stepper = {.pin1 = CONFIG_GPIO_1,
 
 static Context server_context = {.stepper = &stepper};
 
+static State state = {.max_steps = -1, .current_step = -1};
+
 void app_main(void) {
   wifi_init_sta();
   ESP_LOGI(TAG, "Initialize Wifi");
@@ -48,7 +50,6 @@ void app_main(void) {
     return;
   }
   ESP_LOGI(TAG, "Initialized state.");
-
 
   err = start_restful_server(&server_context);
   if (err != ESP_OK) {
