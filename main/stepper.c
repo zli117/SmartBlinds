@@ -89,13 +89,16 @@ void stepper_task(void* parameter) {
                                           .name = "Stepper Timer"};
     esp_timer_handle_t timer_handle;
     configASSERT(esp_timer_create(&timer_args, &timer_handle) == ESP_OK);
-    configASSERT(esp_timer_start_periodic(timer_handle, delay_us));
+    configASSERT(esp_timer_start_periodic(timer_handle, delay_us) == ESP_OK);
 
     // Sleep to wait for finish
     xTaskNotifyWait(
         /*do not clear notification on enter*/ 0x00,
         /*clear notification on exit*/ ULONG_MAX,
         /*pulNotificationValue=*/NULL, portMAX_DELAY);
+
+    configASSERT(esp_timer_stop(timer_handle) == ESP_OK);
+    configASSERT(esp_timer_delete(timer_handle) == ESP_OK);
 
     gpio_set_level(context->stepper.pin1, 0);
     gpio_set_level(context->stepper.pin2, 0);

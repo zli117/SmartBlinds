@@ -29,9 +29,9 @@
   ({                                                                 \
     const esp_err_t err = (status_expr);                             \
     if (err != ESP_OK) {                                             \
-      ESP_LOGE(TAG, failed_msg);                                   \
+      ESP_LOGE(TAG, failed_msg);                                     \
     }                                                                \
-    ESP_LOGI(TAG, success_msg);                                    \
+    ESP_LOGI(TAG, success_msg);                                      \
   })
 
 static Context context = {.stepper = {.pin1 = CONFIG_GPIO_1,
@@ -44,9 +44,11 @@ static Context context = {.stepper = {.pin1 = CONFIG_GPIO_1,
 
 void app_main(void) {
   context.semaphore = xSemaphoreCreateBinary();
+  configASSERT(context.semaphore != NULL);
+  xSemaphoreGive(context.semaphore);
 
-  PRINT_ERROR_OR_SUCCESS(wifi_init_sta(),
-                         "Initialized Wifi.", "Failed to initialize Wifi.");
+  PRINT_ERROR_OR_SUCCESS(wifi_init_sta(), "Initialized Wifi.",
+                         "Failed to initialize Wifi.");
   PRINT_ERROR_OR_SUCCESS(init_storage_and_state(&context.state),
                          "Initialized state.", "Init state failed");
   PRINT_ERROR_OR_SUCCESS(start_stepper_task(&context), "Stepper task started",

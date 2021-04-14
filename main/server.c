@@ -19,18 +19,19 @@
 
 #define TAKE_SEMAPHORE_AND_GET_CONTEXT_OR_RETURN(req_expr)             \
   ({                                                                   \
-    httpd_req_t *const req = (req_expr);                               \
-    Context *context = (Context *)(req)->user_ctx;                     \
+    httpd_req_t *const req_ = (req_expr);                              \
+    Context *context = (Context *)req_->user_ctx;                      \
     if (context == NULL) {                                             \
-      httpd_resp_send_err((req), HTTPD_500_INTERNAL_SERVER_ERROR,      \
+      httpd_resp_send_err(req_, HTTPD_500_INTERNAL_SERVER_ERROR,       \
                           "Context is NULL");                          \
       return ESP_FAIL;                                                 \
     }                                                                  \
+    ESP_LOGI(TAG, "Take Semaphore");                                   \
     if (xSemaphoreTake(context->semaphore, (TickType_t)0) != pdTRUE) { \
       cJSON *root = cJSON_CreateObject();                              \
       cJSON_AddStringToObject(root, "msg", "Stepper is still moving"); \
       const char *json = cJSON_Print(root);                            \
-      httpd_resp_sendstr((req), json);                                 \
+      httpd_resp_sendstr(req_, json);                                  \
       free((void *)json);                                              \
       cJSON_Delete(root);                                              \
       return ESP_OK;                                                   \
@@ -38,25 +39,25 @@
     context;                                                           \
   })
 
-#define RETURN_IF_ERROR(status_expr, req_expr, http_error_code,        \
-                        http_error_msg)                                \
-  ({                                                                   \
-    const esp_err_t status_code = (status_expr);                       \
-    httpd_req_t *const req = (req_expr);                               \
-    if ((status_code) != ESP_OK) {                                     \
-      ESP_LOGE(TAG, http_error_msg);                                 \
-      httpd_resp_send_err((req), (http_error_code), (http_error_msg)); \
-      return status_code;                                              \
-    }                                                                  \
+#define RETURN_IF_ERROR(status_expr, req_expr, http_error_code,       \
+                        http_error_msg)                               \
+  ({                                                                  \
+    const esp_err_t status_code = (status_expr);                      \
+    httpd_req_t *const req_ = (req_expr);                             \
+    if ((status_code) != ESP_OK) {                                    \
+      ESP_LOGE(TAG, http_error_msg);                                  \
+      httpd_resp_send_err(req_, (http_error_code), (http_error_msg)); \
+      return status_code;                                             \
+    }                                                                 \
   })
 
 #define RETURN_OK(req_expr)                     \
   ({                                            \
-    httpd_req_t *const req = (req_expr);        \
+    httpd_req_t *const req_ = (req_expr);       \
     cJSON *root = cJSON_CreateObject();         \
     cJSON_AddStringToObject(root, "msg", "OK"); \
     const char *json = cJSON_Print(root);       \
-    httpd_resp_sendstr((req), json);            \
+    httpd_resp_sendstr((req_), json);           \
     free((void *)json);                         \
     cJSON_Delete(root);                         \
     return ESP_OK;                              \
@@ -118,6 +119,7 @@ static esp_err_t current_status_get_handler(httpd_req_t *req) {
   httpd_resp_sendstr(req, json);
   free((void *)json);
   cJSON_Delete(root);
+  xSemaphoreGive(context->semaphore);
   return ESP_OK;
 }
 
@@ -186,6 +188,7 @@ static esp_err_t reset_state_put_handler(httpd_req_t *req) {
     xSemaphoreGive(context->semaphore);
     return ESP_FAIL;
   }
+  xSemaphoreGive(context->semaphore);
   RETURN_OK(req);
 }
 
