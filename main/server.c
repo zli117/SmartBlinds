@@ -232,7 +232,6 @@ esp_err_t start_restful_server(Context *context) {
   // {
   //    "step": int  // Move this number of steps. Can be negative.
   // }
-  // Response: Same as current_status_get_uri
   httpd_uri_t unsafe_move_steps_put_uri = {
       .uri = "/unsafe_move",
       .method = HTTP_PUT,
@@ -245,7 +244,6 @@ esp_err_t start_restful_server(Context *context) {
   //    "fraction": double  // Move to fraction of the max_steps.
   //                        // In range [0, 1].
   // }
-  // Response: Same as current_status_get_uri
   httpd_uri_t move_steps_put_uri = {.uri = "/move",
                                     .method = HTTP_PUT,
                                     .handler = move_to_fraction_put_handler,

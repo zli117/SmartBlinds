@@ -106,6 +106,7 @@ void stepper_task(void* parameter) {
     gpio_set_level(context->stepper.pin4, 0);
 
     // Update state
+
     State* state = &context->state;
     if (state->max_steps < 0 || state->current_step < 0) {
       ESP_LOGI(TAG, "Initialize state");
