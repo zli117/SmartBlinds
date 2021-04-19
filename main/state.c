@@ -61,7 +61,20 @@ esp_err_t init_storage_and_state(State* state) {
     state->current_step = -1;
     return ESP_OK;
   } else {
-    return load_state_from_file(state);
+    if (({
+          err = load_state_from_file(state);
+          err != ESP_OK;
+        })) {
+      return err;
+    }
+    if (state->max_steps < 0 || state->current_step < 0) {
+      ESP_LOGE(TAG,
+               "Unexpceted state from file: max_steps = %d, current_step = %d",
+               state->max_steps, state->current_step);
+      state->max_steps = -1;
+      state->current_step = -1;
+    }
+    return ESP_OK;
   }
 }
 

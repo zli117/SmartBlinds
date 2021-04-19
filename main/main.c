@@ -38,6 +38,7 @@ static Context context = {.stepper = {.pin1 = CONFIG_GPIO_1,
                                       .pin2 = CONFIG_GPIO_2,
                                       .pin3 = CONFIG_GPIO_3,
                                       .pin4 = CONFIG_GPIO_4,
+                                      .led_pin = CONFIG_LED_GPIO,
                                       .steps_per_rav = CONFIG_STEPS_PER_REV,
                                       .rpm = CONFIG_RPM},
                           .state = {.max_steps = -1, .current_step = -1}};

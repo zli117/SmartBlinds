@@ -13,7 +13,7 @@ esp_err_t load_state_from_file(State* state);
 
 esp_err_t init_storage_and_state(State* state);
 
-esp_err_t delete_state_file(); 
+esp_err_t delete_state_file();
 
 esp_err_t write_state_to_file(const State* state);
 

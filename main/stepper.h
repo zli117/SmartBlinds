@@ -17,6 +17,7 @@ typedef struct Stepper_ {
   uint16_t pin2;
   uint16_t pin3;
   uint16_t pin4;
+  uint16_t led_pin;
   uint16_t steps_per_rav;
   uint16_t rpm;
 } Stepper;

@@ -20,6 +20,10 @@ menu "SmartBlinds"
             int "GPIO 4"
             default 5 
 
+        config LED_GPIO
+            int "LED GPIO"
+            default 32
+
         config STEPS_PER_REV
             int "Steps per revolution. Default for 28BYJ-48 is 2038"
             default 2038

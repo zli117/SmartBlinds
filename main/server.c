@@ -166,6 +166,7 @@ static esp_err_t move_to_fraction_put_handler(httpd_req_t *req) {
     httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR,
                         "State uninitialized.");
     ESP_LOGE(TAG, "State uninitialized");
+    xSemaphoreGive(context->semaphore);
     return ESP_FAIL;
   }
   context->steps =

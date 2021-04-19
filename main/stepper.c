@@ -11,17 +11,19 @@
 #include "sdkconfig.h"
 
 #define TAG CONFIG_LOGGING_TAG
-#define STACK_SIZE 2048
+#define STACK_SIZE 10240
 
 void stepper_init(const Stepper* stepper) {
   gpio_pad_select_gpio(stepper->pin1);
   gpio_pad_select_gpio(stepper->pin2);
   gpio_pad_select_gpio(stepper->pin3);
   gpio_pad_select_gpio(stepper->pin4);
+  gpio_pad_select_gpio(stepper->led_pin);
   gpio_set_direction(stepper->pin1, GPIO_MODE_OUTPUT);
   gpio_set_direction(stepper->pin2, GPIO_MODE_OUTPUT);
   gpio_set_direction(stepper->pin3, GPIO_MODE_OUTPUT);
   gpio_set_direction(stepper->pin4, GPIO_MODE_OUTPUT);
+  gpio_set_direction(stepper->led_pin, GPIO_MODE_OUTPUT);
 }
 
 typedef struct TimerState_ {
@@ -59,13 +61,15 @@ void stepper_task(void* parameter) {
   configASSERT(context->semaphore != NULL);
 
   while (true) {
+    gpio_set_level(context->stepper.led_pin, 0);
     xTaskNotifyWait(/*do not clear notification on enter*/ 0x00,
                     /*clear notification on exit*/ ULONG_MAX,
                     /*pulNotificationValue=*/NULL, portMAX_DELAY);
+    gpio_set_level(context->stepper.led_pin, 1);
 
     // Delete state so if it somehow fails in the middle, the state won't be
     // inconsistent.
-    delete_state_file();
+    configASSERT(delete_state_file() == ESP_OK);
 
     const int64_t steps_per_min =
         (context->stepper.steps_per_rav * context->stepper.rpm);
@@ -88,6 +92,9 @@ void stepper_task(void* parameter) {
                                           .dispatch_method = ESP_TIMER_TASK,
                                           .name = "Stepper Timer"};
     esp_timer_handle_t timer_handle;
+
+    ESP_LOGD(TAG, "Start timer");
+
     configASSERT(esp_timer_create(&timer_args, &timer_handle) == ESP_OK);
     configASSERT(esp_timer_start_periodic(timer_handle, delay_us) == ESP_OK);
 
@@ -96,6 +103,8 @@ void stepper_task(void* parameter) {
         /*do not clear notification on enter*/ 0x00,
         /*clear notification on exit*/ ULONG_MAX,
         /*pulNotificationValue=*/NULL, portMAX_DELAY);
+
+    ESP_LOGD(TAG, "Finished rotation");
 
     configASSERT(esp_timer_stop(timer_handle) == ESP_OK);
     configASSERT(esp_timer_delete(timer_handle) == ESP_OK);
