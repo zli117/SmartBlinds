@@ -63,6 +63,17 @@
     return ESP_OK;                              \
   })
 
+#define PARSE_OR_RETURN_ERROR(buf_expr)                                  \
+  ({                                                                     \
+    cJSON *root = cJSON_Parse((buf_expr));                               \
+    if (root == NULL) {                                                  \
+      ESP_LOGE(TAG, "Invalid input: %s", buf);                           \
+      httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid input."); \
+      return ESP_FAIL;                                                   \
+    }                                                                    \
+    root;                                                                \
+  })
+
 static esp_err_t get_request_buffer(httpd_req_t *req, char *buf,
                                     size_t max_len) {
   int total_len = req->content_len;
@@ -130,7 +141,7 @@ static esp_err_t unsafe_move_steps_put_handler(httpd_req_t *req) {
                   HTTPD_500_INTERNAL_SERVER_ERROR,
                   "Failed to get request body");
 
-  cJSON *root = cJSON_Parse(buf);
+  cJSON *root = PARSE_OR_RETURN_ERROR(buf);
   int steps = cJSON_GetObjectItem(root, "steps")->valueint;
   cJSON_Delete(root);
 
@@ -149,7 +160,7 @@ static esp_err_t move_to_fraction_put_handler(httpd_req_t *req) {
                   HTTPD_500_INTERNAL_SERVER_ERROR,
                   "Failed to get request body");
 
-  cJSON *root = cJSON_Parse(buf);
+  cJSON *root = PARSE_OR_RETURN_ERROR(buf);
   const double fraction = cJSON_GetObjectItem(root, "fraction")->valuedouble;
   cJSON_Delete(root);
 

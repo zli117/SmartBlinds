@@ -26,7 +26,7 @@ void stepper_init(const Stepper* stepper) {
   gpio_set_direction(stepper->led_pin, GPIO_MODE_OUTPUT);
 }
 
-typedef struct TimerState_ {
+typedef struct {
   const uint16_t pin1;
   const uint16_t pin2;
   const uint16_t pin3;

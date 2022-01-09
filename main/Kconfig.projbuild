@@ -35,33 +35,33 @@ menu "SmartBlinds"
 
     menu "Storage"
 
-    config FLASH_PARTITION_PATH
-        string "Path for the flash wear leveling partition"
-        default "/flash"
+        config FLASH_PARTITION_PATH
+            string "Path for the flash wear leveling partition"
+            default "/flash"
 
-    config STATE_FILE_PATH
-        string "Path for the state file"
-        default "/flash/state.bin"
+        config STATE_FILE_PATH
+            string "Path for the state file"
+            default "/flash/state.bin"
 
     endmenu
 
     menu "Wifi"
 
-    config WIFI_SSID
-        string "SSID for the wifi"
-        default ""
+        config WIFI_SSID
+            string "SSID for the wifi"
+            default ""
 
-    config WIFI_PASSWORD
-        string "Password for the wifi"
-        default ""
+        config WIFI_PASSWORD
+            string "Password for the wifi"
+            default ""
 
     endmenu
 
     menu "Logging"
 
-    config LOGGING_TAG
-        string "Tag for logging"
-        default "SmartBlinds"
+        config LOGGING_TAG
+            string "Tag for logging"
+            default "SmartBlinds"
 
     endmenu
 

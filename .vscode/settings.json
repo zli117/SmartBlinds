@@ -12,7 +12,8 @@
   "git.ignoreLimitWarning": true,
   "files.associations": {
     "cerrno": "cpp",
-    "cjson.h": "c"
+    "cjson.h": "c",
+    "esp_log.h": "c"
   },
   "C_Cpp.errorSquiggles": "Enabled"
 }

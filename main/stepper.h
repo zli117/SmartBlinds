@@ -12,7 +12,7 @@
 #include "sdkconfig.h"
 #include "state.h"
 
-typedef struct Stepper_ {
+typedef struct {
   uint16_t pin1;
   uint16_t pin2;
   uint16_t pin3;
@@ -22,7 +22,7 @@ typedef struct Stepper_ {
   uint16_t rpm;
 } Stepper;
 
-typedef struct Context_ {
+typedef struct {
   Stepper stepper;
   State state;
   int32_t steps;
