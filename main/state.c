@@ -42,8 +42,8 @@ esp_err_t init_storage_and_state(State* state) {
       .max_files = 4,
       .format_if_mount_failed = true,
       .allocation_unit_size = CONFIG_WL_SECTOR_SIZE};
-  esp_err_t err = esp_vfs_fat_spiflash_mount(BASE_PATH, PARTITION_LABEL,
-                                             &mount_config, &wl_handle);
+  esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(BASE_PATH, PARTITION_LABEL,
+                                                   &mount_config, &wl_handle);
   if (err != ESP_OK) {
     return err;
   }

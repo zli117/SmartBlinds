@@ -14,11 +14,16 @@
 #define STACK_SIZE 10240
 
 void stepper_init(const Stepper* stepper) {
-  gpio_pad_select_gpio(stepper->pin1);
-  gpio_pad_select_gpio(stepper->pin2);
-  gpio_pad_select_gpio(stepper->pin3);
-  gpio_pad_select_gpio(stepper->pin4);
-  gpio_pad_select_gpio(stepper->led_pin);
+  // gpio_pad_select_gpio(stepper->pin1);
+  // gpio_pad_select_gpio(stepper->pin2);
+  // gpio_pad_select_gpio(stepper->pin3);
+  // gpio_pad_select_gpio(stepper->pin4);
+  // gpio_pad_select_gpio(stepper->led_pin);
+  gpio_reset_pin(stepper->pin1);
+  gpio_reset_pin(stepper->pin2);
+  gpio_reset_pin(stepper->pin3);
+  gpio_reset_pin(stepper->pin4);
+  gpio_reset_pin(stepper->led_pin);
   gpio_set_direction(stepper->pin1, GPIO_MODE_OUTPUT);
   gpio_set_direction(stepper->pin2, GPIO_MODE_OUTPUT);
   gpio_set_direction(stepper->pin3, GPIO_MODE_OUTPUT);
