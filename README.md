@@ -25,14 +25,7 @@
    * Request:
    ```
    {
-      "step": int  // Move this number of steps. Can be negative.
-   }
-   ```
-   * Response:
-   ```
-   {
-      "max_steps": int  // Total number of steps possible
-      "current_steps": int   // Current step number
+      "steps": int  // Move this number of steps. Can be negative.
    }
    ```
 
@@ -45,20 +38,6 @@
                           // In range [0, 1].
    }
    ```
-   * Response:
-   ```
-   {
-      "max_steps": int  // Total number of steps possible
-      "current_steps": int   // Current step number
-   }
-   ```
 
  * Reset State `PUT`
    * Endpoint: `/reset_state`
-   * Response:
-   ```
-   {
-      "max_steps": -1
-      "current_step": -1
-   }
-   ```

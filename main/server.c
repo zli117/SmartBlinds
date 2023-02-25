@@ -243,7 +243,7 @@ esp_err_t start_restful_server(Context *context) {
 
   // Request:
   // {
-  //    "step": int  // Move this number of steps. Can be negative.
+  //    "steps": int  // Move this number of steps. Can be negative.
   // }
   httpd_uri_t unsafe_move_steps_put_uri = {
       .uri = "/unsafe_move",

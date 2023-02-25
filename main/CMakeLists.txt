@@ -1,2 +1,1 @@
-idf_component_register(SRCS "server.c" "wifi.c" "state.c" "stepper.c" "main.c"
-                    INCLUDE_DIRS ".")
+idf_component_register(SRCS "server.c" "wifi.c" "state.c" "stepper.c" "main.c" INCLUDE_DIRS ".")
