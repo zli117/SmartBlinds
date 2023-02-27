@@ -1,4 +1,5 @@
 # RESTful Server For Blinds
+![image](image.jpg)
 
  * Get System Info `GET`
    * Endpoint: `/system_info`
