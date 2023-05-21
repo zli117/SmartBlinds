@@ -107,7 +107,7 @@ class SmartBlind(CoverEntity):
     @property
     def is_closed(self) -> bool | None:
         """Return if the cover is closed or not."""
-        return self.position == 0
+        return self.position == 0 or self.position == self.max_position
     
     @property
     def available(self) -> bool:
