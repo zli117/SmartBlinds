@@ -14,11 +14,6 @@
 #define STACK_SIZE 10240
 
 void stepper_init(const Stepper* stepper) {
-  // gpio_pad_select_gpio(stepper->pin1);
-  // gpio_pad_select_gpio(stepper->pin2);
-  // gpio_pad_select_gpio(stepper->pin3);
-  // gpio_pad_select_gpio(stepper->pin4);
-  // gpio_pad_select_gpio(stepper->led_pin);
   gpio_reset_pin(stepper->pin1);
   gpio_reset_pin(stepper->pin2);
   gpio_reset_pin(stepper->pin3);
@@ -42,7 +37,7 @@ typedef struct {
   int64_t step;
 } TimerState;
 
-static const uint8_t pin_states[4] = {0b1010, 0b0110, 0b0101, 0b1001};
+static const uint8_t pin_states[] = {0b1010, 0b0110, 0b0101, 0b1001};
 
 void timer_callback(void* parameter) {
   configASSERT(parameter != NULL);
@@ -52,7 +47,7 @@ void timer_callback(void* parameter) {
                            /*pxHigherPriorityTaskWoken=*/NULL);
     return;
   }
-  const uint8_t pin_state = pin_states[timer_state->step % 4];
+  const uint8_t pin_state = pin_states[timer_state->step % sizeof(pin_states)];
   gpio_set_level(timer_state->pin1, pin_state & 0b1000);
   gpio_set_level(timer_state->pin2, pin_state & 0b0100);
   gpio_set_level(timer_state->pin3, pin_state & 0b0010);
